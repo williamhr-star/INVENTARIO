@@ -1,0 +1,31 @@
+contra_rst/
+├── src/
+│   ├── contra_rst/
+│   │   ├── __init__.py
+│   │   ├── app.py                 # Punto de entrada principal
+│   │   ├── database.py            # Modelos y conexión a BD
+│   │   ├── sync_manager.py        # Sincronización con OneDrive
+│   │   ├── pdf_generator.py       # Generación de PDFs
+│   │   ├── styles.py              # Estilos y colores
+│   │   ├── widgets.py             # Componentes reutilizables
+│   │   ├── views/
+│   │   │   ├── __init__.py
+│   │   │   ├── dashboard.py       # Pantalla principal (tu imagen)
+│   │   │   ├── inventario.py      # Gestión de inventario
+│   │   │   ├── ventas.py          # Ventas y costos
+│   │   │   ├── contabilidad.py    # Libros contables
+│   │   │   ├── asientos.py        # Creación de asientos
+│   │   │   ├── reportes.py        # Reportes PDF
+│   │   │   └── configuracion.py   # Configuración
+│   │   └── models/
+│   │       ├── __init__.py
+│   │       ├── producto.py
+│   │       ├── venta.py
+│   │       ├── asiento.py
+│   │       └── parametro.py
+│   └── contra_rst.icons            # Iconos de la app
+├── resources/                      # Recursos (imágenes, fuentes)
+├── tests/                          # Pruebas unitarias
+├── pyproject.toml                  # Configuración de BeeWare
+├── README.md
+└── requirements.txt
