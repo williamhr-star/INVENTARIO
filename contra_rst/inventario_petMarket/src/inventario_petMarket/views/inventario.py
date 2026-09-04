@@ -17,6 +17,8 @@ class InventarioView:
         self.productos = []
         self.main_box = None
         self.tabla_box = None
+        self.busqueda_input = None
+        self.stock_bajo_check = None
     
     def build(self):
         self.main_box = toga.Box(style=Pack(direction=COLUMN, flex=1, gap=15))
@@ -43,6 +45,14 @@ class InventarioView:
             StatCard("Valor Inventario", f"${resumen['valor_total']:,.0f}", COLORS['success'], "💰"),
         ]
         self.main_box.add(toga.Box(style=Pack(direction=ROW, gap=20), children=cards))
+
+        filtros = toga.Box(style=Pack(direction=ROW, gap=10))
+        self.busqueda_input = toga.TextInput(style=Pack(flex=1, padding=8))
+        self.busqueda_input.hint_text = "Buscar por código, nombre o categoría"
+        self.busqueda_input.on_change = self._filtrar_productos
+        self.stock_bajo_check = toga.Switch("Solo stock bajo", on_change=self._filtrar_productos)
+        filtros.add(self.busqueda_input, self.stock_bajo_check)
+        self.main_box.add(filtros)
         
         # ========== TABLA DE PRODUCTOS ==========
         self.tabla_box = toga.Box(style=Pack(direction=COLUMN))
@@ -63,11 +73,19 @@ class InventarioView:
         valor_total = sum(p['stock_actual'] * p['precio_costo'] for p in productos)
         return {'total': total, 'stock_bajo': stock_bajo, 'valor_total': valor_total}
     
+    def _filtrar_productos(self, _widget):
+        self._actualizar_lista(None)
+
     def _actualizar_lista(self, _widget):
         """Actualiza la tabla de productos"""
         self.tabla_box.clear()
         
-        productos = self.db.obtener_productos()
+        productos = self.db.obtener_productos(bool(self.stock_bajo_check and self.stock_bajo_check.value))
+        termino = (self.busqueda_input.value or '').strip().lower() if self.busqueda_input else ''
+        if termino:
+            productos = [p for p in productos if termino in ' '.join([
+                str(p.get('codigo', '')), str(p.get('nombre', '')), str(p.get('categoria', ''))
+            ]).lower()]
         self.productos = productos
         
         if not productos:
@@ -79,8 +97,8 @@ class InventarioView:
         
         # Encabezado
         header = toga.Box(style=Pack(direction=ROW, padding=8, background_color=COLORS['gray_200']))
-        for titulo in ["Código", "Nombre", "Stock", "Costo", "Venta"]:
-            header.add(toga.Label(titulo, style=Pack(width=100, font_weight="bold")))
+        for titulo in ["Código", "Nombre", "Categoría", "Stock actual", "Precio", "Estado"]:
+            header.add(toga.Label(titulo, style=Pack(width=115, font_weight="bold")))
         self.tabla_box.add(header)
         
         # Filas
@@ -89,15 +107,18 @@ class InventarioView:
                 style=Pack(
                     direction=ROW,
                     padding=6,
-                    background_color=COLORS['danger_light'] if p['stock_actual'] < p['stock_minimo'] else 'transparent'
+                    background_color=COLORS['danger_light'] if p['stock_actual'] <= p['stock_minimo'] else COLORS['gray_50']
                 )
             )
+            estado = "Agotado" if p['stock_actual'] <= 0 else "Stock bajo" if p['stock_actual'] <= p['stock_minimo'] else "Disponible"
+            estado_color = COLORS['danger'] if estado != "Disponible" else COLORS['success']
             row.add(
-                toga.Label(p['codigo'], style=Pack(width=100)),
-                toga.Label(p['nombre'][:20], style=Pack(width=100)),
-                toga.Label(f"{p['stock_actual']:.2f}", style=Pack(width=100)),
-                toga.Label(f"${p['precio_costo']:,.0f}", style=Pack(width=100)),
-                toga.Label(f"${p['precio_venta']:,.0f}", style=Pack(width=100)),
+                toga.Label(p['codigo'], style=Pack(width=115)),
+                toga.Label(p['nombre'][:24], style=Pack(width=115)),
+                toga.Label(p.get('categoria', '')[:16], style=Pack(width=115)),
+                toga.Label(f"{p['stock_actual']:.2f}", style=Pack(width=115)),
+                toga.Label(f"${p['precio_venta']:,.0f}", style=Pack(width=115)),
+                toga.Label(estado, style=Pack(width=115, color=estado_color, font_weight="bold")),
             )
             self.tabla_box.add(row)
         

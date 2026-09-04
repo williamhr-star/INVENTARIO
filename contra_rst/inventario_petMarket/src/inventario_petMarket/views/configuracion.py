@@ -127,7 +127,7 @@ class ConfiguracionView:
         )
         info_card.add(
             toga.Label("ℹ️ Información del Sistema", style=Pack(font_size=14, font_weight="bold")),
-            toga.Label("ContraRST v1.0.0", style=Pack(color=COLORS['gray_600'])),
+            toga.Label("Inventario PetMarket v1.0.0", style=Pack(color=COLORS['gray_600'])),
             toga.Label("Desarrollado con BeeWare y Python", style=Pack(color=COLORS['gray_600'])),
             toga.Label("Base de datos: SQLite + OneDrive Sync", style=Pack(color=COLORS['gray_600']))
         )

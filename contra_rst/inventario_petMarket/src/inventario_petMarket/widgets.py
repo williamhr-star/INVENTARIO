@@ -13,7 +13,7 @@ class Card(toga.Box):
         super().__init__(
             style=Pack(
                 direction=COLUMN,
-                padding=padding,  # ✅ padding es válido en Pack
+                margin=padding,
                 background_color=bgcolor,
                 **kwargs
             )
@@ -39,18 +39,18 @@ class StatCard(toga.Box):
         )
         self.add(
             toga.Label(f"{icon} {title}", 
-                      style=Pack(color=COLORS['white'], font_size=12, font_weight="bold"))
+                    style=Pack(color=COLORS['white'], font_size=12, font_weight="bold"))
         )
         self.add(
             toga.Label(str(value), 
-                      style=Pack(color=COLORS['white'], font_size=24, font_weight="bold"))
+                    style=Pack(color=COLORS['white'], font_size=24, font_weight="bold"))
         )
 
 
 class DataTable(toga.Box):
     """Tabla de datos con encabezado y filas"""
     def __init__(self, columns, data, _row_actions=None):
-        super().__init__(style=Pack(direction=COLUMN, background_color=COLORS['white'], padding=5))
+        super().__init__(style=Pack(direction=COLUMN, background_color=COLORS['white'], margin=5))
         
         # Calcular ancho de columnas
         col_width = int(800 / len(columns)) if len(columns) > 0 else 100
@@ -59,7 +59,7 @@ class DataTable(toga.Box):
         header = toga.Box(
             style=Pack(
                 direction=ROW,
-                padding=8,
+                margin=8,
                 background_color=COLORS['gray_200'],
             )
         )
@@ -73,14 +73,14 @@ class DataTable(toga.Box):
         if not data:
             self.add(
                 toga.Label("Sin datos disponibles", 
-                          style=Pack(padding=20, color=COLORS['gray_600']))
+                        style=Pack(margin=20, color=COLORS['gray_600']))
             )
         else:
             for row_data in data:
                 row = toga.Box(
                     style=Pack(
                         direction=ROW,
-                        padding=6,
+                        margin=6,
                     )
                 )
                 
@@ -149,7 +149,7 @@ class Toast(toga.Window):
         box = toga.Box(style=Pack(direction=COLUMN, padding=20, background_color=bgcolor))
         box.add(
             toga.Label(message, 
-                      style=Pack(color=COLORS['white'], font_size=14))
+                    style=Pack(color=COLORS['white'], font_size=14))
         )
         self.content = box
     
@@ -179,11 +179,11 @@ class ModalDialog(toga.Window):
         buttons = toga.Box(style=Pack(direction=ROW, gap=10, margin_top=20))
         buttons.add(
             toga.Button("Cancelar", on_press=self.on_cancel,
-                       style=Pack(background_color=COLORS['gray_500'], color=COLORS['white']))
+                    style=Pack(background_color=COLORS['gray_500'], color=COLORS['white']))
         )
         buttons.add(
             toga.Button("Guardar", on_press=self.on_confirm,
-                       style=Pack(background_color=COLORS['success'], color=COLORS['white']))
+                    style=Pack(background_color=COLORS['success'], color=COLORS['white']))
         )
         main_box.add(buttons)
         

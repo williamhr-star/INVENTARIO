@@ -67,8 +67,12 @@ class ReportesView:
     
     def _generar_libro_diario(self, widget):
         """Genera el libro diario en PDF"""
-        Toast(self.app.main_window, "📄 Libro Diario PDF generado", "info").show()
+        from ..pdf_generator import PDFGenerator
+        filename = PDFGenerator(self.db.db_path).generar_libro_diario("2026-01-01", datetime.now().strftime("%Y-%m-%d"))
+        Toast(self.app.main_window, f"PDF generado: {filename}", "success").show()
     
     def _generar_rst_iva(self, widget):
         """Genera el reporte de RST e IVA"""
-        Toast(self.app.main_window, "📄 RST e IVA PDF generado", "info").show()
+        from ..pdf_generator import PDFGenerator
+        filename = PDFGenerator(self.db.db_path).generar_rst_iva("2026-01-01", datetime.now().strftime("%Y-%m-%d"))
+        Toast(self.app.main_window, f"PDF generado: {filename}", "success").show()

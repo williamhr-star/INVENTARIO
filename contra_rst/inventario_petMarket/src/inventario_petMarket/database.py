@@ -385,22 +385,6 @@ class DatabaseManager:
                 'COSTO_VENTA',
                 datos_venta.get('usuario', 'Admin')
             ))
-            # Registrar asiento contable de ingreso por venta
-            cursor.execute('''
-                INSERT INTO asientos 
-                (fecha, descripcion, cuenta, nombre_cuenta, debito, credito, documento_referencia, tipo_movimiento, usuario)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                datetime.now().isoformat(),
-                f"Venta #{venta_id}",
-                '1105',
-                'Caja',
-                datos_venta['total'],
-                0,
-                str(venta_id),
-                'VENTA',
-                datos_venta.get('usuario', 'Admin')
-            ))
         # Registrar asiento contable de ingreso por venta
         cursor.execute('''
             INSERT INTO asientos 

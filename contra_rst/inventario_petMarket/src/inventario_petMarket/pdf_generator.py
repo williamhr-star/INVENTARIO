@@ -145,3 +145,53 @@ class PDFGenerator:
         story.append(table)
         doc.build(story)
         return filename
+
+    def _generar_tabla_asientos(self, titulo: str, filename: str, desde: str, hasta: str, query: str, parametros=()):
+        """Genera reportes tabulares que parten del libro de asientos."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            rows = conn.execute(query, (*parametros, desde, hasta)).fetchall()
+        finally:
+            conn.close()
+
+        doc = SimpleDocTemplate(filename, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = [
+            Paragraph(titulo, ParagraphStyle('ReportTitle', parent=styles['Heading1'], alignment=1, textColor=colors.blue)),
+            Spacer(1, 0.2 * inch),
+            Paragraph(f"Período: {desde} al {hasta}", styles['Normal']),
+            Spacer(1, 0.25 * inch),
+        ]
+        data = [['Fecha', 'Descripción', 'Cuenta', 'Débito', 'Crédito']]
+        data.extend([
+            [fecha[:10], descripcion[:32], f'{cuenta} {nombre[:18]}', f'${debito:,.0f}', f'${credito:,.0f}']
+            for fecha, descripcion, cuenta, nombre, debito, credito in rows
+        ])
+        table = Table(data, colWidths=[0.85 * inch, 2.25 * inch, 1.45 * inch, 0.8 * inch, 0.8 * inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.blue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ]))
+        story.append(table)
+        doc.build(story)
+        return filename
+
+    def generar_libro_diario(self, desde: str, hasta: str) -> str:
+        filename = os.path.join(self.output_dir, f"libro_diario_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+        return self._generar_tabla_asientos(
+            'LIBRO DIARIO', filename, desde, hasta,
+            """SELECT fecha, descripcion, cuenta, nombre_cuenta, debito, credito
+            FROM asientos WHERE fecha BETWEEN ? AND ? ORDER BY fecha, id"""
+        )
+
+    def generar_rst_iva(self, desde: str, hasta: str) -> str:
+        filename = os.path.join(self.output_dir, f"rst_iva_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+        return self._generar_tabla_asientos(
+            'RST E IVA', filename, desde, hasta,
+            """SELECT fecha, descripcion, cuenta, nombre_cuenta, debito, credito
+            FROM asientos WHERE fecha BETWEEN ? AND ? AND (cuenta LIKE '4%' OR cuenta LIKE '24%')
+            ORDER BY fecha, id"""
+        )
