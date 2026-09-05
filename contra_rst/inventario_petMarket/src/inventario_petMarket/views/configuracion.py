@@ -38,7 +38,7 @@ class ConfiguracionView:
         # ========== INFORMACIÓN DE LA EMPRESA ==========
         empresa_card = Card(
             toga.Box(style=Pack(direction=COLUMN, gap=10)),
-            padding=20
+            margin=20
         )
         empresa_card.add(
             toga.Label("🏢 Datos de la Empresa", style=Pack(font_size=16, font_weight="bold"))
@@ -56,9 +56,17 @@ class ConfiguracionView:
         
         self.telefono_input = toga.TextInput(style=Pack(width=200))
         self.telefono_input.hint_text = "Teléfono"
+
+        def campo(etiqueta, control):
+            fila = toga.Box(style=Pack(direction=ROW, gap=10))
+            fila.add(toga.Label(etiqueta, style=Pack(width=130, color=COLORS['text_primary'])), control)
+            return fila
         
         empresa_card.add(
-            self.nombre_input, self.nit_input, self.direccion_input, self.telefono_input,
+            campo("Razón social", self.nombre_input),
+            campo("NIT", self.nit_input),
+            campo("Dirección", self.direccion_input),
+            campo("Teléfono", self.telefono_input),
             ActionButton("💾 Guardar Datos", self._guardar_empresa, "💾", COLORS['success'])
         )
         
@@ -67,7 +75,7 @@ class ConfiguracionView:
         # ========== PARÁMETROS CONTABLES ==========
         params_card = Card(
             toga.Box(style=Pack(direction=COLUMN, gap=10)),
-            padding=20
+            margin=20
         )
         params_card.add(
             toga.Label("📊 Parámetros Contables", style=Pack(font_size=16, font_weight="bold"))
@@ -82,11 +90,11 @@ class ConfiguracionView:
         
         params_card.add(
             toga.Box(style=Pack(direction=ROW, gap=20), children=[
-                toga.Label("IVA:", style=Pack(font_weight="bold")),
+                toga.Label("IVA %", style=Pack(width=130, font_weight="bold", color=COLORS['text_primary'])),
                 self.iva_input
             ]),
             toga.Box(style=Pack(direction=ROW, gap=20), children=[
-                toga.Label("Tarifa RST:", style=Pack(font_weight="bold")),
+                toga.Label("Tarifa RST %", style=Pack(width=130, font_weight="bold", color=COLORS['text_primary'])),
                 self.rst_input
             ]),
             ActionButton("💾 Guardar Parámetros", self._guardar_parametros, "💾", COLORS['success'])
@@ -97,7 +105,7 @@ class ConfiguracionView:
         # ========== SISTEMA ==========
         system_card = Card(
             toga.Box(style=Pack(direction=COLUMN, gap=10)),
-            padding=20
+            margin=20
         )
         system_card.add(
             toga.Label("🔄 Sistema", style=Pack(font_size=16, font_weight="bold"))
@@ -123,7 +131,7 @@ class ConfiguracionView:
         # ========== INFORMACIÓN ==========
         info_card = Card(
             toga.Box(style=Pack(direction=COLUMN, gap=5)),
-            padding=15
+            margin=15
         )
         info_card.add(
             toga.Label("ℹ️ Información del Sistema", style=Pack(font_size=14, font_weight="bold")),

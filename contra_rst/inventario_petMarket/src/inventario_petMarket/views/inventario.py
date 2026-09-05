@@ -5,7 +5,7 @@ import toga
 from toga.style import Pack
 from toga.style.pack import COLUMN, ROW
 from ..styles import COLORS
-from ..widgets import Card, StatCard, ActionButton, Toast
+from ..widgets import StatCard, ActionButton, Toast
 
 
 class InventarioView:
@@ -21,7 +21,7 @@ class InventarioView:
         self.stock_bajo_check = None
     
     def build(self):
-        self.main_box = toga.Box(style=Pack(direction=COLUMN, flex=1, gap=15))
+        self.main_box = toga.Box(style=Pack(direction=COLUMN, flex=1, gap=15, background_color=COLORS['background']))
         
         # ========== ENCABEZADO ==========
         header = toga.Box(style=Pack(direction=ROW, flex=False, gap=10))
@@ -47,7 +47,7 @@ class InventarioView:
         self.main_box.add(toga.Box(style=Pack(direction=ROW, gap=20), children=cards))
 
         filtros = toga.Box(style=Pack(direction=ROW, gap=10))
-        self.busqueda_input = toga.TextInput(style=Pack(flex=1, padding=8))
+        self.busqueda_input = toga.TextInput(style=Pack(flex=1, margin=8))
         self.busqueda_input.hint_text = "Buscar por código, nombre o categoría"
         self.busqueda_input.on_change = self._filtrar_productos
         self.stock_bajo_check = toga.Switch("Solo stock bajo", on_change=self._filtrar_productos)
@@ -91,13 +91,13 @@ class InventarioView:
         if not productos:
             self.tabla_box.add(
                 toga.Label("No hay productos registrados", 
-                          style=Pack(padding=40, color=COLORS['gray_600'], text_align="center"))
+                          style=Pack(margin=40, color=COLORS['gray_600'], text_align="center"))
             )
             return
         
         # Encabezado
-        header = toga.Box(style=Pack(direction=ROW, padding=8, background_color=COLORS['gray_200']))
-        for titulo in ["Código", "Nombre", "Categoría", "Stock actual", "Precio", "Estado"]:
+        header = toga.Box(style=Pack(direction=ROW, margin=8, background_color=COLORS['gray_200']))
+        for titulo in ["Código", "Nombre", "Categoría", "Stock actual", "Precio", "Estado", "Acciones"]:
             header.add(toga.Label(titulo, style=Pack(width=115, font_weight="bold")))
         self.tabla_box.add(header)
         
@@ -106,7 +106,7 @@ class InventarioView:
             row = toga.Box(
                 style=Pack(
                     direction=ROW,
-                    padding=6,
+                    margin=6,
                     background_color=COLORS['danger_light'] if p['stock_actual'] <= p['stock_minimo'] else COLORS['gray_50']
                 )
             )
@@ -119,11 +119,13 @@ class InventarioView:
                 toga.Label(f"{p['stock_actual']:.2f}", style=Pack(width=115)),
                 toga.Label(f"${p['precio_venta']:,.0f}", style=Pack(width=115)),
                 toga.Label(estado, style=Pack(width=115, color=estado_color, font_weight="bold")),
+                toga.Button("Editar", on_press=lambda w, item=p: self._editar_producto(item), style=Pack(width=75, margin=6, color=COLORS['primary'])),
+                toga.Button("Eliminar", on_press=lambda w, item=p: self._eliminar_producto(item), style=Pack(width=85, margin=6, color=COLORS['danger'])),
             )
             self.tabla_box.add(row)
         
     
-    def _nuevo_producto(self, _widget):
+    def _nuevo_producto(self, _widget, producto=None):
         """Abre diálogo para crear nuevo producto"""
         # Crear formulario
         form = toga.Box(style=Pack(direction=COLUMN, gap=10))
@@ -134,8 +136,8 @@ class InventarioView:
         nombre_input = toga.TextInput(style=Pack(width=300))
         nombre_input.hint_text = "Nombre del producto"
         
-        categoria_input = toga.TextInput(style=Pack(width=300))
-        categoria_input.hint_text = "Categoría"
+        categoria_input = toga.Selection(items=["Alimentos", "Accesorios", "Higiene", "Medicamentos", "Otro"], style=Pack(width=300))
+        categoria_input.value = "Alimentos"
         
         costo_input = toga.NumberInput(min=0, style=Pack(width=150))
         costo_input.hint_text = "Precio Costo"
@@ -148,12 +150,24 @@ class InventarioView:
         
         min_input = toga.NumberInput(min=0, style=Pack(width=150))
         min_input.hint_text = "Stock Mínimo"
+
+        if producto:
+            codigo_input.value = producto.get('codigo', '')
+            nombre_input.value = producto.get('nombre', '')
+            categoria_input.value = producto.get('categoria', 'Otro')
+            costo_input.value = producto.get('precio_costo', 0)
+            venta_input.value = producto.get('precio_venta', 0)
+            stock_input.value = producto.get('stock_actual', 0)
+            min_input.value = producto.get('stock_minimo', 0)
         
-        form.add(
-            toga.Label("Nuevo Producto", style=Pack(font_size=18, font_weight="bold")),
-            codigo_input, nombre_input, categoria_input,
-            costo_input, venta_input, stock_input, min_input
-        )
+        def campo(etiqueta, control):
+            fila = toga.Box(style=Pack(direction=ROW, gap=10))
+            fila.add(toga.Label(etiqueta, style=Pack(width=120, color=COLORS['text_primary'])), control)
+            return fila
+
+        form.add(toga.Label("Nuevo Producto", style=Pack(font_size=18, font_weight="bold", color=COLORS['text_primary'])))
+        form.add(campo("Código", codigo_input), campo("Nombre", nombre_input), campo("Categoría", categoria_input))
+        form.add(campo("Precio costo", costo_input), campo("Precio venta", venta_input), campo("Stock inicial", stock_input), campo("Stock mínimo", min_input))
         
         def confirmar(_widget):
             datos = {
@@ -165,14 +179,17 @@ class InventarioView:
                 'stock_actual': float(stock_input.value or 0),
                 'stock_minimo': float(min_input.value or 0)
             }
-            self.db.crear_producto(datos)
+            if producto:
+                self.db.actualizar_producto(producto['id'], datos)
+            else:
+                self.db.crear_producto(datos)
             self._actualizar_lista(None)
-            Toast(self.app.main_window, "✅ Producto creado exitosamente", "success").show()
+            Toast(self.app.main_window, "Producto guardado exitosamente", "success").show()
             dialog.close()
         
         # Ventana modal simple
         dialog = toga.Window(title="Nuevo Producto", size=(500, 500))
-        content = toga.Box(style=Pack(direction=COLUMN, padding=20, gap=10))
+        content = toga.Box(style=Pack(direction=COLUMN, margin=20, gap=10))
         content.add(form)
         
         buttons = toga.Box(style=Pack(direction=ROW, gap=10, margin_top=20))
@@ -188,3 +205,18 @@ class InventarioView:
         
         dialog.content = content
         dialog.show()
+
+    def _editar_producto(self, producto):
+        self._nuevo_producto(None, producto)
+
+    async def _eliminar_producto(self, producto):
+        confirmado = await self.app.main_window.question_dialog(
+            "Confirmar eliminación", f"¿Eliminar {producto['nombre']}?"
+        )
+        if not confirmado:
+            return
+        try:
+            self.db.eliminar_producto(producto['id'], getattr(self.app, 'user', 'Administrador'))
+            self._actualizar_lista(None)
+        except ValueError as error:
+            Toast(self.app.main_window, str(error), "error").show()

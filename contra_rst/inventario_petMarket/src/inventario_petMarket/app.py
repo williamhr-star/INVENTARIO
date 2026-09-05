@@ -16,6 +16,7 @@ from .views.asientos import AsientosView
 from .views.reportes import ReportesView
 from .views.configuracion import ConfiguracionView
 from .styles import COLORS, STYLES
+from . import APP_NAME
 
 class ContraRSTApp(toga.App):
     def __init__(self, *args, **kwargs):
@@ -26,6 +27,7 @@ class ContraRSTApp(toga.App):
         self.current_view = None
         self.main_box = None
         self.user = "Administrador"
+        self.business_name = APP_NAME
         
     def startup(self):
         """Inicializa la aplicación"""
@@ -40,14 +42,14 @@ class ContraRSTApp(toga.App):
         self.setup_database()
         
         # Crear el layout principal
-        self.main_box = toga.Box(style=Pack(direction=ROW, flex=1, background_color=COLORS['background']))
+        self.main_box = toga.Box(style=Pack(direction=ROW, flex=1, background_color=COLORS['app_background']))
         
         # Menú lateral
         sidebar = self.create_sidebar()
         self.main_box.add(sidebar)
         
         # Contenido principal (Dashboard por defecto)
-        self.content_box = toga.Box(style=Pack(direction=COLUMN, flex=1, margin=20, background_color=COLORS['background']))
+        self.content_box = toga.Box(style=Pack(direction=COLUMN, flex=1, margin=20, background_color=COLORS['app_background']))
         self.main_box.add(self.content_box)
         
         # Cargar Dashboard
@@ -82,6 +84,12 @@ class ContraRSTApp(toga.App):
         else:
             # Conectar a la base de datos existente
             self.db_manager = DatabaseManager(self.db_path)
+
+        # También aplica tablas nuevas cuando se actualiza una instalación existente.
+        self.db_manager.crear_tablas()
+        self.business_name = self.db_manager.obtener_parametro(
+            'EMPRESA_NOMBRE', APP_NAME
+        ) or APP_NAME
     
     def create_sidebar(self):
         """Crea el menú lateral"""
@@ -89,7 +97,7 @@ class ContraRSTApp(toga.App):
             style=Pack(
                 direction=COLUMN,
                 width=240,
-                padding=15,
+                margin=15,
                 background_color=COLORS['sidebar_background'],
                 flex=False
             )
@@ -98,7 +106,7 @@ class ContraRSTApp(toga.App):
         # Logo
         logo = toga.Box(style=Pack(direction=COLUMN, margin_bottom=20))
         logo.add(
-            toga.Label("INVENTARIO", style=Pack(font_size=22, font_weight="bold", color=COLORS['white'])),
+            toga.Label(self.business_name, style=Pack(font_size=22, font_weight="bold", color=COLORS['white'])),
             toga.Label(f"{self.user} · Admin", style=Pack(font_size=12, color=COLORS['gray_300']))
         )
         sidebar.add(logo)
@@ -202,7 +210,7 @@ class ContraRSTApp(toga.App):
 
 def main():
     return ContraRSTApp(
-        "Inventario PetMarket",
+        APP_NAME,
         "com.whenterprise.inventario_petmarket"
     )
 

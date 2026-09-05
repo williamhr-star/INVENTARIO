@@ -20,12 +20,10 @@ test_sources = [
     "tests",
 ]
 
-# Dependencias principales de la aplicación
+# ⭐ DEPENDENCIAS PRINCIPALES (todas las plataformas)
 requires = [
     "toga",             # Framework GUI
-    "pillow",           # Manejo de imágenes
-    "reportlab",        # Generación de PDFs
-    "python-dotenv"     # Variables de entorno
+    "python-dotenv",    # Variables de entorno
 ]
 
 # Dependencias para pruebas
@@ -33,12 +31,27 @@ test_requires = [
     "pytest"
 ]
 
-[tool.briefcase.app.inventario_petMarket.macOS]
-universal_build = true
-requires = []
+# ⭐ DEPENDENCIAS SOLO PARA WINDOWS (escritorio)
+[tool.briefcase.app.inventario_petMarket.windows]
+requires = [
+    "reportlab>=4.0.0",
+    "Pillow>=9.0.0",
+]
 
+# ⭐ DEPENDENCIAS SOLO PARA macOS (escritorio)
+[tool.briefcase.app.inventario_petMarket.macOS]
+requires = [
+    "reportlab>=4.0.0",
+    "Pillow>=9.0.0",
+]
+universal_build = true
+
+# ⭐ DEPENDENCIAS SOLO PARA LINUX (escritorio)
 [tool.briefcase.app.inventario_petMarket.linux]
-requires = []
+requires = [
+    "reportlab>=4.0.0",
+    "Pillow>=9.0.0",
+]
 
 [tool.briefcase.app.inventario_petMarket.linux.system.debian]
 system_requires = []
@@ -61,13 +74,11 @@ flatpak_runtime = "org.freedesktop.Platform"
 flatpak_runtime_version = "25.08"
 flatpak_sdk = "org.freedesktop.Sdk"
 
-[tool.briefcase.app.inventario_petMarket.windows]
+# ⭐ ANDROID NO NECESITA pilllow NI reportlab
+[tool.briefcase.app.inventario_petMarket.android]
 requires = []
 
 [tool.briefcase.app.inventario_petMarket.iOS]
-requires = []
-
-[tool.briefcase.app.inventario_petMarket.android]
 requires = []
 
 [tool.briefcase.app.inventario_petMarket.web]

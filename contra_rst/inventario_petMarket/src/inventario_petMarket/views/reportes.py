@@ -39,7 +39,7 @@ class ReportesView:
         for icono, titulo, desc, on_click in reportes:
             card = Card(
                 toga.Box(style=Pack(direction=COLUMN, gap=5)),
-                padding=15,
+                margin=15,
                 width=350
             )
             card.add(

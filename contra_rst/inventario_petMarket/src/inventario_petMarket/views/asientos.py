@@ -31,7 +31,7 @@ class AsientosView:
         # ========== FORMULARIO ==========
         form = Card(
             toga.Box(style=Pack(direction=COLUMN, gap=10)),
-            padding=20
+            margin=20
         )
         
         # Fecha
@@ -163,7 +163,7 @@ class AsientosView:
 
         if not asientos:
             self.ultimos_asientos_box.add(
-                toga.Label("No hay asientos creados todavía.", style=Pack(padding=5))
+                toga.Label("No hay asientos creados todavía.", style=Pack(margin=5))
             )
             return
 
@@ -184,6 +184,6 @@ class AsientosView:
             self.ultimos_asientos_box.add(
                 toga.Label(
                     f"{fecha} · {cuenta} · {descripcion} · {importe}",
-                    style=Pack(padding=5)
+                    style=Pack(margin=5)
                 )
             )

@@ -104,6 +104,17 @@ class DatabaseManager:
                 FOREIGN KEY (producto_id) REFERENCES productos(id)
             )
         ''')
+
+        # Métodos de pago separados para permitir pagos divididos.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pagos_venta (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                venta_id INTEGER NOT NULL,
+                metodo TEXT NOT NULL,
+                monto REAL NOT NULL,
+                FOREIGN KEY (venta_id) REFERENCES ventas(id)
+            )
+        ''')
         
         # Tabla de asientos contables
         cursor.execute('''
@@ -130,6 +141,23 @@ class DatabaseManager:
                 descripcion TEXT
             )
         ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha TEXT NOT NULL,
+                usuario TEXT NOT NULL,
+                accion TEXT NOT NULL,
+                entidad TEXT NOT NULL,
+                entidad_id INTEGER,
+                detalle TEXT
+            )
+        ''')
+
+        cursor.execute(
+            "INSERT OR IGNORE INTO parametros (clave, valor, descripcion) VALUES (?, ?, ?)",
+            ('META_DIA', '1000000', 'Meta diaria de ventas')
+        )
         
         conn.commit()
         self.cerrar()
@@ -147,6 +175,7 @@ class DatabaseManager:
             ('EMPRESA_NIT', '900.000.000-0', 'NIT de la empresa'),
             ('EMPRESA_DIRECCION', 'Calle 123', 'Dirección'),
             ('EMPRESA_TELEFONO', '3000000000', 'Teléfono'),
+            ('META_DIA', '1000000', 'Meta diaria de ventas'),
         ]
         
         cursor.executemany(
@@ -170,6 +199,17 @@ class DatabaseManager:
         
         conn.commit()
         self.cerrar()
+
+    def obtener_parametro(self, clave: str, predeterminado=None):
+        """Obtiene un parámetro de configuración o devuelve un valor alternativo."""
+        conn = self.conectar()
+        try:
+            resultado = conn.execute(
+                "SELECT valor FROM parametros WHERE clave = ?", (clave,)
+            ).fetchone()
+            return resultado[0] if resultado else predeterminado
+        finally:
+            conn.close()
     
     # ========== MÉTODOS CRUD PARA PRODUCTOS ==========
     def obtener_productos(self, solo_stock_bajo=False) -> List[Dict]:
@@ -280,9 +320,31 @@ class DatabaseManager:
         conn.commit()
         conn.close()
         return True
+
+    def eliminar_producto(self, producto_id: int, usuario: str) -> bool:
+        """Elimina un producto sin ventas asociadas y registra la auditoría."""
+        conn = self.conectar()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nombre FROM productos WHERE id = ?", (producto_id,))
+        producto = cursor.fetchone()
+        if not producto:
+            conn.close()
+            return False
+        cursor.execute("SELECT 1 FROM detalle_ventas WHERE producto_id = ? LIMIT 1", (producto_id,))
+        if cursor.fetchone():
+            conn.close()
+            raise ValueError("No se puede eliminar un producto con ventas asociadas")
+        cursor.execute("DELETE FROM productos WHERE id = ?", (producto_id,))
+        cursor.execute('''
+            INSERT INTO auditoria (fecha, usuario, accion, entidad, entidad_id, detalle)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (datetime.now().isoformat(), usuario, 'ELIMINAR', 'producto', producto_id, producto['nombre']))
+        conn.commit()
+        conn.close()
+        return True
     
     # ========== MÉTODOS CRUD PARA VENTAS ==========
-    def registrar_venta(self, datos_venta: Dict, detalles: List[Dict]) -> int:
+    def registrar_venta(self, datos_venta: Dict, detalles: List[Dict], pagos: Optional[List[Dict]] = None) -> int:
         """Registra una venta completa con sus detalles"""
         conn = self.conectar()
         cursor = conn.cursor()
@@ -305,6 +367,12 @@ class DatabaseManager:
         ))
         
         venta_id = cursor.lastrowid
+
+        for pago in pagos or []:
+            cursor.execute(
+                'INSERT INTO pagos_venta (venta_id, metodo, monto) VALUES (?, ?, ?)',
+                (venta_id, pago['metodo'], pago['monto'])
+            )
         
         # Insertar detalles y actualizar stock
         for detalle in detalles:
@@ -430,21 +498,21 @@ class DatabaseManager:
         
         # Ingresos (cuentas 4xxx)
         cursor.execute(
-            "SELECT COALESCE(SUM(debito), 0) FROM asientos WHERE cuenta LIKE '4%' AND fecha BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(credito), 0) FROM asientos WHERE cuenta LIKE '4%' AND date(fecha) BETWEEN ? AND ?",
             (fecha_desde, fecha_hasta)
         )
         ingresos = cursor.fetchone()[0]
         
         # Costos de venta (6135)
         cursor.execute(
-            "SELECT COALESCE(SUM(debito), 0) FROM asientos WHERE cuenta LIKE '6135%' AND fecha BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(debito), 0) FROM asientos WHERE cuenta LIKE '6135%' AND date(fecha) BETWEEN ? AND ?",
             (fecha_desde, fecha_hasta)
         )
         costos_venta = cursor.fetchone()[0]
         
         # Gastos (5xxx y 6xxx)
         cursor.execute(
-            "SELECT COALESCE(SUM(debito), 0) FROM asientos WHERE (cuenta LIKE '5%' OR cuenta LIKE '6%') AND fecha BETWEEN ? AND ?",
+            "SELECT COALESCE(SUM(debito), 0) FROM asientos WHERE (cuenta LIKE '5%' OR cuenta LIKE '6%') AND date(fecha) BETWEEN ? AND ?",
             (fecha_desde, fecha_hasta)
         )
         gastos = cursor.fetchone()[0]
@@ -466,6 +534,53 @@ class DatabaseManager:
             'utilidad_bruta': utilidad_bruta,
             'utilidad_neta': utilidad_neta,
             'rst_estimado': rst_estimado
+        }
+
+    def obtener_dashboard(self, fecha: Optional[str] = None) -> Dict:
+        """Obtiene indicadores diarios, fondos y tendencia para el dashboard."""
+        fecha = fecha or datetime.now().strftime('%Y-%m-%d')
+        conn = self.conectar()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COALESCE(SUM(v.total), 0) AS ventas,
+                   COALESCE(SUM(d.cantidad * p.precio_costo), 0) AS cmv
+            FROM ventas v
+            LEFT JOIN detalle_ventas d ON d.venta_id = v.id
+            LEFT JOIN productos p ON p.id = d.producto_id
+            WHERE date(v.fecha) = ? AND v.estado = 'Pagada'
+        ''', (fecha,))
+        indicadores = dict(cursor.fetchone())
+
+        cursor.execute('''
+            SELECT pv.metodo, COALESCE(SUM(pv.monto), 0) AS total
+            FROM pagos_venta pv JOIN ventas v ON v.id = pv.venta_id
+            WHERE date(v.fecha) = ? AND v.estado = 'Pagada'
+            GROUP BY pv.metodo ORDER BY pv.metodo
+        ''', (fecha,))
+        fondos = {row['metodo']: row['total'] for row in cursor.fetchall()}
+
+        cursor.execute('''
+            SELECT date(fecha) AS dia, COALESCE(SUM(total), 0) AS total
+            FROM ventas WHERE date(fecha) BETWEEN date(?, '-6 days') AND date(?)
+            AND estado = 'Pagada' GROUP BY date(fecha) ORDER BY dia
+        ''', (fecha, fecha))
+        tendencia = {row['dia']: row['total'] for row in cursor.fetchall()}
+
+        cursor.execute("SELECT valor FROM parametros WHERE clave = 'META_DIA'")
+        meta_row = cursor.fetchone()
+        conn.close()
+
+        ventas = indicadores['ventas'] or 0
+        cmv = indicadores['cmv'] or 0
+        meta = float(meta_row['valor']) if meta_row and meta_row['valor'] else 0
+        return {
+            'ventas': ventas,
+            'cmv': cmv,
+            'margen_bruto': ventas - cmv,
+            'meta': meta,
+            'cumplimiento': (ventas / meta * 100) if meta else 0,
+            'fondos': fondos,
+            'tendencia': tendencia,
         }
     
     def obtener_ultimos_asientos(self, limite: int = 10) -> List[Dict]:

@@ -40,7 +40,7 @@ class ContabilidadView:
         # Selector de sección
         seccion_selector = toga.Selection(
             items=list(titulos.values()),
-            style=Pack(width=250, padding=10)
+            style=Pack(width=250, margin=10)
         )
         seccion_selector.value = titulos.get(self.seccion)
         seccion_selector.on_select = self._cambiar_seccion
@@ -78,7 +78,7 @@ class ContabilidadView:
     def _build_libro_diario(self):
         """Construye la vista del Libro Diario"""
         # Selector de período
-        period = toga.Box(style=Pack(direction=ROW, gap=10, padding=10))
+        period = toga.Box(style=Pack(direction=ROW, gap=10, margin=10))
         period.add(
             toga.Label("Período:", style=Pack(font_weight="bold")),
             toga.DateInput(value=datetime(2026, 1, 1), style=Pack(width=150)),
@@ -106,7 +106,7 @@ class ContabilidadView:
         else:
             self.main_box.add(
                 toga.Label("No hay asientos registrados", 
-                          style=Pack(padding=40, color=COLORS['gray_600'], text_align="center"))
+                          style=Pack(margin=40, color=COLORS['gray_600'], text_align="center"))
             )
     
     def _build_libro_mayor(self):
@@ -122,7 +122,7 @@ class ContabilidadView:
         
         cuenta_selector = toga.Selection(
             items=cuentas,
-            style=Pack(width=300, padding=10)
+            style=Pack(width=300, margin=10)
         )
         cuenta_selector.on_select = self._mostrar_movimientos_cuenta
         self.main_box.add(cuenta_selector)
@@ -161,7 +161,7 @@ class ContabilidadView:
         else:
             self.movimientos_box.add(
                 toga.Label("No hay movimientos para esta cuenta", 
-                          style=Pack(padding=20, color=COLORS['gray_600']))
+                          style=Pack(margin=20, color=COLORS['gray_600']))
             )
     
     def _build_conciliacion(self):
@@ -215,57 +215,55 @@ class ContabilidadView:
         ]
         
         # Crear tabla simple
-        table = toga.Box(style=Pack(direction=COLUMN, background_color=COLORS['white'], padding=5))
+        table = toga.Box(style=Pack(direction=COLUMN, background_color=COLORS['white'], margin=5))
         for i, row in enumerate(tarifas):
-            r = toga.Box(style=Pack(direction=ROW, padding=5, background_color=COLORS['gray_50'] if i % 2 == 0 else COLORS['white']))
+            r = toga.Box(style=Pack(direction=ROW, margin=5, background_color=COLORS['gray_50'] if i % 2 == 0 else COLORS['white']))
             for col in row:
                 r.add(toga.Label(col, style=Pack(width=150, font_weight="bold" if i == 0 else "normal")))
             table.add(r)
         self.main_box.add(table)
     
     def _build_puc(self):
-        """Construye la vista del Plan Único de Cuentas"""
-        self.main_box.add(
-            toga.Label("📋 Plan Único de Cuentas (PUC)", 
-                      style=Pack(font_size=18, font_weight="bold"))
-        )
-        
-        # Categorías del PUC
-        puc_categorias = [
-            ("1", "Activo", [
-                ("1105", "Caja"),
-                ("1305", "Bancos"),
-                ("1435", "Inventario"),
-            ]),
-            ("2", "Pasivo", [
-                ("2105", "Proveedores"),
-                ("2205", "Obligaciones Laborales"),
-            ]),
-            ("3", "Patrimonio", [
-                ("3115", "Capital"),
-            ]),
-            ("4", "Ingresos", [
-                ("4135", "Ingresos"),
-            ]),
-            ("5", "Gastos Operativos", [
-                ("5105", "Gastos de Personal"),
-                ("5205", "Gastos Generales"),
-            ]),
-            ("6", "Costo de Ventas", [
-                ("6135", "Costo de Ventas"),
-            ]),
-        ]
-        
-        for categoria, nombre, cuentas in puc_categorias:
-            # Encabezado de categoría
-            self.main_box.add(
-                toga.Label(f"{categoria} - {nombre}", 
-                          style=Pack(font_size=16, font_weight="bold", color=COLORS['primary'], margin_top=10))
-            )
-            
-            # Lista de cuentas
-            for codigo, nombre_cuenta in cuentas:
-                self.main_box.add(
-                    toga.Label(f"  {codigo} - {nombre_cuenta}", 
-                              style=Pack(font_size=13, margin_left=20))
-                )
+        """Construye el árbol PUC y el listado de asientos recientes."""
+        self.main_box.add(toga.Label(
+            "📋 Plan Único de Cuentas (PUC)",
+            style=Pack(font_size=18, font_weight="bold", color=COLORS['text_primary'])
+        ))
+        contenido = toga.Box(style=Pack(direction=ROW, flex=1, gap=12))
+        arbol_card = Card(toga.Box(style=Pack(direction=COLUMN, flex=1)), margin=12)
+        asientos_card = Card(toga.Box(style=Pack(direction=COLUMN, flex=1)), margin=12)
+        arbol_card.add(toga.Label("Árbol de cuentas", style=Pack(font_weight="bold", color=COLORS['text_primary'])))
+        asientos_card.add(toga.Label("Asientos contables recientes", style=Pack(font_weight="bold", color=COLORS['text_primary'])))
+
+        puc = getattr(self.app, "puc", None) or getattr(self.app, "PUC", None) or {
+            "1105": {"nombre": "Caja"}, "1305": {"nombre": "Bancos"},
+            "1435": {"nombre": "Inventario"}, "2105": {"nombre": "Proveedores"},
+            "3115": {"nombre": "Capital"}, "4135": {"nombre": "Ingresos"},
+            "6135": {"nombre": "Costo de Ventas"},
+        }
+        nombres = {"1": "Activo", "2": "Pasivo", "3": "Patrimonio",
+                   "4": "Ingresos", "5": "Gastos", "6": "Costos"}
+        grupos = {}
+        for clase, nombre_clase in nombres.items():
+            cuentas = []
+            for codigo, datos in sorted(puc.items()):
+                if str(codigo).startswith(clase):
+                    nombre = datos.get("nombre", datos.get("nombre_cuenta", "")) if isinstance(datos, dict) else str(datos)
+                    cuentas.append(f"{codigo} - {nombre}")
+            if cuentas:
+                grupos[f"{clase} - {nombre_clase}"] = cuentas
+        tree = toga.Tree(columns=["Cuenta"], data=grupos,
+                         style=Pack(flex=1, background_color=COLORS['card_background']))
+        arbol_card.add(tree)
+
+        rows = self.db.obtener_ultimos_asientos(20)
+        if not rows:
+            asientos_card.add(toga.Label("No hay asientos registrados", style=Pack(color=COLORS['gray_600'])))
+        for asiento in rows:
+            valor = asiento['debito'] if asiento['debito'] else asiento['credito']
+            asientos_card.add(toga.Label(
+                f"{asiento['fecha'][:10]} · {asiento['cuenta']} · {asiento['descripcion']} · ${valor:,.0f}",
+                style=Pack(color=COLORS['text_secondary'], margin=4)
+            ))
+        contenido.add(arbol_card, asientos_card)
+        self.main_box.add(contenido)
